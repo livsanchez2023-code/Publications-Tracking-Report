@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard — Publications Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen">
+  <nav class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <h1 class="text-lg font-bold text-slate-800">📚 Publications Tracker</h1>
+      <span class="bg-indigo-100 text-indigo-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">Admin Dashboard</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <span id="user-email" class="text-sm text-slate-500"></span>
+      <a href="publications.html" class="text-sm text-slate-500 hover:text-slate-800 transition">My Publications</a>
+      <button onclick="signOut()" class="text-sm text-slate-500 hover:text-red-500 transition">Sign out</button>
+    </div>
+  </nav>
+
+  <div id="access-denied" class="hidden max-w-md mx-auto mt-24 text-center">
+    <div class="text-5xl mb-4">🔒</div>
+    <h2 class="text-xl font-bold text-slate-800 mb-2">Access Restricted</h2>
+    <p class="text-slate-500 text-sm">This dashboard is for admin users only.</p>
+    <a href="publications.html" class="mt-6 inline-block text-blue-600 hover:underline text-sm">Go to my publications</a>
+  </div>
+
+  <div id="main" class="hidden max-w-7xl mx-auto px-6 py-10">
+    <!-- Stats -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      <div class="bg-white rounded-xl border border-slate-200 px-5 py-4 shadow-sm">
+        <p class="text-xs text-slate-500 mb-1">Total Publications</p>
+        <p id="stat-total" class="text-2xl font-bold text-slate-800">—</p>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 px-5 py-4 shadow-sm">
+        <p class="text-xs text-slate-500 mb-1">Submitters</p>
+        <p id="stat-submitters" class="text-2xl font-bold text-slate-800">—</p>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 px-5 py-4 shadow-sm">
+        <p class="text-xs text-slate-500 mb-1">Institutions</p>
+        <p id="stat-institutions" class="text-2xl font-bold text-slate-800">—</p>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 px-5 py-4 shadow-sm">
+        <p class="text-xs text-slate-500 mb-1">Showing</p>
+        <p id="stat-showing" class="text-2xl font-bold text-slate-800">—</p>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-slate-700">Filter &amp; Sort</h3>
+        <button onclick="clearFilters()" class="text-sm text-slate-400 hover:text-red-500 transition">Clear all</button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Search</label>
+          <input id="f-search" type="text" oninput="applyFilters()" placeholder="Title, author, journal…"
+            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Institution / Company</label>
+          <select id="f-institution" onchange="applyFilters()"
+            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">All institutions</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Publication Type</label>
+          <select id="f-type" onchange="applyFilters()"
+            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">All types</option>
+            <option value="Journal Article">Journal Article</option>
+            <option value="Conference Paper">Conference Paper</option>
+            <option value="Book Chapter">Book Chapter</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Year</label>
+          <div class="flex items-center gap-2">
+            <input id="f-year-from" type="number" oninput="applyFilters()" placeholder="From"
+              class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <span class="text-slate-400 text-sm">–</span>
+            <input id="f-year-to" type="number" oninput="applyFilters()" placeholder="To"
+              class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+      </div>
+      <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
+        <span class="text-xs font-medium text-slate-500">Sort by:</span>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="setSort('title')"       id="sort-title"       class="sort-btn px-3 py-1 rounded-full text-xs border border-slate-300 hover:border-blue-500 hover:text-blue-600 transition">Title (A–Z)</button>
+          <button onclick="setSort('year_desc')"   id="sort-year_desc"   class="sort-btn px-3 py-1 rounded-full text-xs border border-slate-300 hover:border-blue-500 hover:text-blue-600 transition">Year (newest)</button>
+          <button onclick="setSort('year_asc')"    id="sort-year_asc"    class="sort-btn px-3 py-1 rounded-full text-xs border border-slate-300 hover:border-blue-500 hover:text-blue-600 transition">Year (oldest)</button>
+          <button onclick="setSort('institution')" id="sort-institution" class="sort-btn px-3 py-1 rounded-full text-xs border border-slate-300 hover:border-blue-500 hover:text-blue-600 transition">Institution (A–Z)</button>
+          <button onclick="setSort('submitter')"   id="sort-submitter"   class="sort-btn px-3 py-1 rounded-full text-xs border border-slate-300 hover:border-blue-500 hover:text-blue-600 transition">Submitter</button>
+          <button onclick="setSort('created_at')"  id="sort-created_at"  class="sort-btn px-3 py-1 rounded-full text-xs border border-slate-300 hover:border-blue-500 hover:text-blue-600 transition">Date added</button>
+        </div>
+        <button onclick="exportCSV()" class="ml-auto bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition">⬇ Export CSV</button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div id="loading" class="text-center text-slate-400 py-16">Loading publications…</div>
+    <div id="no-results" class="hidden text-center py-16">
+      <div class="text-4xl mb-3">🔍</div>
+      <p class="text-slate-500">No publications match your filters.</p>
+    </div>
+    <div id="table-wrapper" class="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      <table class="min-w-full text-sm text-slate-700">
+        <thead class="bg-slate-50 border-b border-slate-200">
+          <tr>
+            <th class="px-4 py-3 text-left font-semibold text-slate-600">Title</th>
+            <th class="px-4 py-3 text-left font-semibold text-slate-600">Author(s)</th>
+            <th class="px-4 py-3 text-left font-semibold text-slate-600">Journal</th>
+            <th class="px-4 py-3 text-left font-semibold text-slate-600">Year</th>
+            <th class="px-4 py-3 text-left font-semibold text-slate-600">Type</th>
+            <th class="px-4 py-3 text-left font-semibold text-slate-600">Institution</th>
+            <th class="px-4 py-3 text-left font-semibold text-slate-600">Submitted by</th>
+            <th class="px-4 py-3 text-left font-semibold text-slate-600">Date added</th>
+          </tr>
+        </thead>
+        <tbody id="dash-table-body" class="divide-y divide-slate-100"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let allPublications = [];
+    let filtered = [];
+    let currentSort = 'created_at';
+
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { window.location.href = 'login.html'; return; }
+      document.getElementById('user-email').textContent = session.user.email;
+      const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', session.user.id).single();
+      if (!profile?.is_admin) { document.getElementById('access-denied').classList.remove('hidden'); return; }
+      document.getElementById('main').classList.remove('hidden');
+      await loadAll();
+    }
+
+    async function signOut() { await supabase.auth.signOut(); window.location.href = 'login.html'; }
+
+    async function loadAll() {
+      const { data } = await supabase.from('publications').select('*').order('created_at', { ascending: false });
+      document.getElementById('loading').classList.add('hidden');
+      allPublications = data || [];
+      populateInstitutionFilter();
+      applyFilters();
+    }
+
+    function populateInstitutionFilter() {
+      const institutions = [...new Set(allPublications.map(p => p.institution).filter(Boolean))].sort();
+      const sel = document.getElementById('f-institution');
+      institutions.forEach(inst => {
+        const opt = document.createElement('option');
+        opt.value = inst; opt.textContent = inst;
+        sel.appendChild(opt);
+      });
+    }
+
+    function applyFilters() {
+      const search      = document.getElementById('f-search').value.toLowerCase();
+      const institution = document.getElementById('f-institution').value;
+      const type        = document.getElementById('f-type').value;
+      const yearFrom    = parseInt(document.getElementById('f-year-from').value) || null;
+      const yearTo      = parseInt(document.getElementById('f-year-to').value) || null;
+      filtered = allPublications.filter(p => {
+        if (search) {
+          const blob = [p.title, p.authors, p.journal, p.institution, p.submitter_email].join(' ').toLowerCase();
+          if (!blob.includes(search)) return false;
+        }
+        if (institution && p.institution !== institution) return false;
+        if (type && p.publication_type !== type) return false;
+        if (yearFrom && p.year && p.year < yearFrom) return false;
+        if (yearTo && p.year && p.year > yearTo) return false;
+        return true;
+      });
+      sortAndRender();
+    }
+
+    function clearFilters() {
+      ['f-search','f-institution','f-type','f-year-from','f-year-to'].forEach(id => document.getElementById(id).value = '');
+      applyFilters();
+    }
+
+    function setSort(key) {
+      currentSort = key;
+      document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.classList.remove('bg-blue-600','text-white','border-blue-600');
+        btn.classList.add('border-slate-300');
+      });
+      const btn = document.getElementById('sort-' + key);
+      if (btn) { btn.classList.add('bg-blue-600','text-white','border-blue-600'); btn.classList.remove('border-slate-300'); }
+      sortAndRender();
+    }
+
+    function sortAndRender() {
+      const sorted = [...filtered].sort((a, b) => {
+        switch (currentSort) {
+          case 'title':       return (a.title||'').localeCompare(b.title||'');
+          case 'year_desc':   return (b.year||0) - (a.year||0);
+          case 'year_asc':    return (a.year||0) - (b.year||0);
+          case 'institution': return (a.institution||'').localeCompare(b.institution||'');
+          case 'submitter':   return (a.submitter_email||'').localeCompare(b.submitter_email||'');
+          default:            return new Date(b.created_at) - new Date(a.created_at);
+        }
+      });
+      renderTable(sorted);
+      document.getElementById('stat-total').textContent = allPublications.length;
+      document.getElementById('stat-submitters').textContent = new Set(allPublications.map(p => p.submitter_email).filter(Boolean)).size;
+      document.getElementById('stat-institutions').textContent = new Set(allPublications.map(p => p.institution).filter(Boolean)).size;
+      document.getElementById('stat-showing').textContent = sorted.length;
+    }
+
+    function renderTable(data) {
+      if (data.length === 0) {
+        document.getElementById('no-results').classList.remove('hidden');
+        document.getElementById('table-wrapper').classList.add('hidden');
+      } else {
+        document.getElementById('no-results').classList.add('hidden');
+        document.getElementById('table-wrapper').classList.remove('hidden');
+      }
+      document.getElementById('dash-table-body').innerHTML = data.map(p => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="px-4 py-3 font-medium max-w-xs">${p.doi ? `<a href="${escHtml(p.doi)}" target="_blank" class="text-blue-600 hover:underline">${escHtml(p.title)}</a>` : escHtml(p.title)}</td>
+          <td class="px-4 py-3 text-slate-600">${escHtml(p.authors)}</td>
+          <td class="px-4 py-3 text-slate-600">${escHtml(p.journal||'—')}</td>
+          <td class="px-4 py-3 text-slate-600">${p.year||'—'}</td>
+          <td class="px-4 py-3"><span class="inline-block bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-full">${escHtml(p.publication_type||'—')}</span></td>
+          <td class="px-4 py-3 text-slate-600">${escHtml(p.institution||'—')}</td>
+          <td class="px-4 py-3 text-slate-500 text-xs">${escHtml(p.submitter_email||'—')}</td>
+          <td class="px-4 py-3 text-slate-400 text-xs">${new Date(p.created_at).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'})}</td>
+        </tr>`).join('');
+    }
+
+    function exportCSV() {
+      const headers = ['Title','Authors','Journal','Year','DOI','Type','Institution','Submitted By','Date Added','Notes'];
+      const rows = filtered.map(p => [p.title,p.authors,p.journal,p.year,p.doi,p.publication_type,p.institution,p.submitter_email,new Date(p.created_at).toLocaleDateString(),p.notes]);
+      const csv = [headers,...rows].map(r => r.map(c => `"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+      a.download = `publications-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+    }
+
+    function escHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    init();
+  </script>
+</body>
+</html>

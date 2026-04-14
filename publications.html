@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Publications — Publications Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen">
+  <nav class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+    <h1 class="text-lg font-bold text-slate-800">📚 Publications Tracker</h1>
+    <div class="flex items-center gap-4">
+      <span id="user-email" class="text-sm text-slate-500"></span>
+      <a id="admin-link" href="dashboard.html" class="hidden text-sm bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition">Admin Dashboard</a>
+      <button onclick="signOut()" class="text-sm text-slate-500 hover:text-red-500 transition">Sign out</button>
+    </div>
+  </nav>
+  <div class="max-w-5xl mx-auto px-6 py-10">
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h2 class="text-2xl font-bold text-slate-800">My Publications</h2>
+        <p class="text-slate-500 text-sm mt-1">Submit and manage your publication entries.</p>
+      </div>
+      <button onclick="openForm(null)" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-lg transition">+ Add Publication</button>
+    </div>
+    <div id="loading" class="text-center text-slate-400 py-16">Loading your publications…</div>
+    <div id="empty-state" class="hidden text-center py-16">
+      <div class="text-5xl mb-4">📄</div>
+      <p class="text-slate-500">You haven't added any publications yet.</p>
+      <button onclick="openForm(null)" class="mt-4 text-blue-600 hover:underline text-sm">Add your first publication</button>
+    </div>
+    <div id="table-wrapper" class="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      <table class="min-w-full text-sm text-slate-700">
+        <thead class="bg-slate-50 border-b border-slate-200">
+          <tr>
+            <th class="px-5 py-3 text-left font-semibold text-slate-600">Title</th>
+            <th class="px-5 py-3 text-left font-semibold text-slate-600">Author(s)</th>
+            <th class="px-5 py-3 text-left font-semibold text-slate-600">Journal</th>
+            <th class="px-5 py-3 text-left font-semibold text-slate-600">Year</th>
+            <th class="px-5 py-3 text-left font-semibold text-slate-600">Type</th>
+            <th class="px-5 py-3 text-left font-semibold text-slate-600">Institution</th>
+            <th class="px-5 py-3 text-right font-semibold text-slate-600">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="pub-table-body" class="divide-y divide-slate-100"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add/Edit Modal -->
+  <div id="modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between px-7 pt-7 pb-4 border-b border-slate-100">
+        <h3 id="modal-title" class="text-lg font-bold text-slate-800">Add Publication</h3>
+        <button onclick="closeForm()" class="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+      </div>
+      <form id="pub-form" onsubmit="savePublication(event)" class="px-7 py-6 space-y-5">
+        <input type="hidden" id="pub-id" />
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Title <span class="text-red-500">*</span></label>
+          <input id="f-title" type="text" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Full title of the publication" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Author(s) <span class="text-red-500">*</span></label>
+          <input id="f-authors" type="text" required class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Smith J, Doe A" />
+          <p class="text-xs text-slate-400 mt-1">Separate multiple authors with commas.</p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Journal / Publication Name</label>
+            <input id="f-journal" type="text" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. Nature, IEEE…" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Year</label>
+            <input id="f-year" type="number" min="1900" max="2100" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g. 2024" />
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">DOI or URL</label>
+            <input id="f-doi" type="text" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="https://doi.org/10.xxxx/…" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Publication Type</label>
+            <select id="f-type" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">— Select type —</option>
+              <option value="Journal Article">Journal Article</option>
+              <option value="Conference Paper">Conference Paper</option>
+              <option value="Book Chapter">Book Chapter</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Institution / Company</label>
+          <input id="f-institution" type="text" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Your affiliated organization" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Notes (optional)</label>
+          <textarea id="f-notes" rows="3" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Any additional notes…"></textarea>
+        </div>
+        <p id="form-error" class="text-red-500 text-sm hidden"></p>
+        <div class="flex gap-3 pt-2">
+          <button type="submit" id="save-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition">Save Publication</button>
+          <button type="button" onclick="closeForm()" class="flex-1 border border-slate-300 text-slate-600 hover:bg-slate-50 font-semibold py-2.5 rounded-lg transition">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Modal -->
+  <div id="delete-modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 text-center">
+      <div class="text-4xl mb-4">🗑️</div>
+      <h3 class="text-lg font-bold text-slate-800 mb-2">Delete this publication?</h3>
+      <p class="text-slate-500 text-sm mb-6">This action cannot be undone.</p>
+      <div class="flex gap-3">
+        <button onclick="confirmDelete()" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 rounded-lg transition">Yes, delete</button>
+        <button onclick="document.getElementById('delete-modal').classList.add('hidden')" class="flex-1 border border-slate-300 text-slate-600 hover:bg-slate-50 font-semibold py-2.5 rounded-lg transition">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentUser = null;
+    let publications = [];
+    let deleteTargetId = null;
+
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { window.location.href = 'login.html'; return; }
+      currentUser = session.user;
+      document.getElementById('user-email').textContent = currentUser.email;
+      const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', currentUser.id).single();
+      if (profile?.is_admin) document.getElementById('admin-link').classList.remove('hidden');
+      await loadPublications();
+    }
+
+    async function signOut() {
+      await supabase.auth.signOut();
+      window.location.href = 'login.html';
+    }
+
+    async function loadPublications() {
+      const { data, error } = await supabase.from('publications').select('*').eq('submitter_id', currentUser.id).order('created_at', { ascending: false });
+      document.getElementById('loading').classList.add('hidden');
+      publications = data || [];
+      renderTable(publications);
+    }
+
+    function renderTable(data) {
+      const tbody = document.getElementById('pub-table-body');
+      if (data.length === 0) {
+        document.getElementById('empty-state').classList.remove('hidden');
+        document.getElementById('table-wrapper').classList.add('hidden');
+        return;
+      }
+      document.getElementById('empty-state').classList.add('hidden');
+      document.getElementById('table-wrapper').classList.remove('hidden');
+      tbody.innerHTML = data.map(p => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="px-5 py-3 font-medium max-w-xs">${p.doi ? `<a href="${escHtml(p.doi)}" target="_blank" class="text-blue-600 hover:underline">${escHtml(p.title)}</a>` : escHtml(p.title)}</td>
+          <td class="px-5 py-3 text-slate-600">${escHtml(p.authors)}</td>
+          <td class="px-5 py-3 text-slate-600">${escHtml(p.journal || '—')}</td>
+          <td class="px-5 py-3 text-slate-600">${p.year || '—'}</td>
+          <td class="px-5 py-3"><span class="inline-block bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-full">${escHtml(p.publication_type || '—')}</span></td>
+          <td class="px-5 py-3 text-slate-600">${escHtml(p.institution || '—')}</td>
+          <td class="px-5 py-3 text-right whitespace-nowrap">
+            <button onclick="openForm('${p.id}')" class="text-blue-600 hover:underline text-sm mr-4">Edit</button>
+            <button onclick="promptDelete('${p.id}')" class="text-red-500 hover:underline text-sm">Delete</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    function openForm(id) {
+      document.getElementById('form-error').classList.add('hidden');
+      document.getElementById('pub-form').reset();
+      document.getElementById('pub-id').value = '';
+      document.getElementById('modal-title').textContent = 'Add Publication';
+      if (id) {
+        const pub = publications.find(p => p.id === id);
+        if (!pub) return;
+        document.getElementById('modal-title').textContent = 'Edit Publication';
+        document.getElementById('pub-id').value = pub.id;
+        document.getElementById('f-title').value = pub.title || '';
+        document.getElementById('f-authors').value = pub.authors || '';
+        document.getElementById('f-journal').value = pub.journal || '';
+        document.getElementById('f-year').value = pub.year || '';
+        document.getElementById('f-doi').value = pub.doi || '';
+        document.getElementById('f-type').value = pub.publication_type || '';
+        document.getElementById('f-institution').value = pub.institution || '';
+        document.getElementById('f-notes').value = pub.notes || '';
+      }
+      document.getElementById('modal').classList.remove('hidden');
+    }
+
+    function closeForm() { document.getElementById('modal').classList.add('hidden'); }
+
+    async function savePublication(event) {
+      event.preventDefault();
+      const errorEl = document.getElementById('form-error');
+      const btn = document.getElementById('save-btn');
+      errorEl.classList.add('hidden');
+      btn.textContent = 'Saving…'; btn.disabled = true;
+      const payload = {
+        title: document.getElementById('f-title').value.trim(),
+        authors: document.getElementById('f-authors').value.trim(),
+        journal: document.getElementById('f-journal').value.trim() || null,
+        year: parseInt(document.getElementById('f-year').value) || null,
+        doi: document.getElementById('f-doi').value.trim() || null,
+        publication_type: document.getElementById('f-type').value || null,
+        institution: document.getElementById('f-institution').value.trim() || null,
+        notes: document.getElementById('f-notes').value.trim() || null,
+        submitter_id: currentUser.id,
+        submitter_email: currentUser.email,
+      };
+      const existingId = document.getElementById('pub-id').value;
+      let error;
+      if (existingId) {
+        ({ error } = await supabase.from('publications').update(payload).eq('id', existingId));
+      } else {
+        ({ error } = await supabase.from('publications').insert(payload));
+      }
+      btn.textContent = 'Save Publication'; btn.disabled = false;
+      if (error) { errorEl.textContent = error.message; errorEl.classList.remove('hidden'); return; }
+      closeForm();
+      await loadPublications();
+    }
+
+    function promptDelete(id) { deleteTargetId = id; document.getElementById('delete-modal').classList.remove('hidden'); }
+
+    async function confirmDelete() {
+      document.getElementById('delete-modal').classList.add('hidden');
+      if (!deleteTargetId) return;
+      const { error } = await supabase.from('publications').delete().eq('id', deleteTargetId);
+      if (error) { alert('Could not delete: ' + error.message); return; }
+      deleteTargetId = null;
+      await loadPublications();
+    }
+
+    function escHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    document.getElementById('modal').addEventListener('click', e => { if (e.target === document.getElementById('modal')) closeForm(); });
+    init();
+  </script>
+</body>
+</html>
