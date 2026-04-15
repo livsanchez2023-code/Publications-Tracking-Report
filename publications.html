@@ -129,7 +129,7 @@
     let deleteTargetId = null;
 
     async function init() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session) { window.location.href = 'login.html'; return; }
       currentUser = session.user;
       document.getElementById('user-email').textContent = currentUser.email;
@@ -139,7 +139,7 @@
     }
 
     async function signOut() {
-      await supabase.auth.signOut();
+      await supabaseClient.auth.signOut();
       window.location.href = 'login.html';
     }
 
