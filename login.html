@@ -58,7 +58,7 @@
       btn.disabled = true;
       const { error } = await supabaseClient.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: window.location.origin + '/publications.html' },
+        options: { emailRedirectTo: window.location.href.replace('login.html','publications.html') },
       });
       if (error) {
         errorEl.textContent = error.message;
