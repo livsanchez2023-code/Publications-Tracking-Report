@@ -142,7 +142,7 @@
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session) { window.location.href = 'login.html'; return; }
       document.getElementById('user-email').textContent = session.user.email;
-      const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', session.user.id).single();
+      const { data: profile } = await supabaseClient.from('profiles').select('is_admin').eq('id', session.user.id).single();
       if (!profile?.is_admin) { document.getElementById('access-denied').classList.remove('hidden'); return; }
       document.getElementById('main').classList.remove('hidden');
       await loadAll();
@@ -151,7 +151,7 @@
     async function signOut() { await supabaseClient.auth.signOut(); window.location.href = 'login.html'; }
 
     async function loadAll() {
-      const { data } = await supabase.from('publications').select('*').order('created_at', { ascending: false });
+      const { data } = await supabaseClient.from('publications').select('*').order('created_at', { ascending: false });
       document.getElementById('loading').classList.add('hidden');
       allPublications = data || [];
       populateInstitutionFilter();
