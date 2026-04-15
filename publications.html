@@ -137,7 +137,7 @@
       if (!session) { window.location.href = 'login.html'; return; }
       currentUser = session.user;
       document.getElementById('user-email').textContent = currentUser.email;
-      const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', currentUser.id).single();
+      const { data: profile } = await supabaseClient.from('profiles').select('is_admin').eq('id', currentUser.id).single();
       if (profile?.is_admin) document.getElementById('admin-link').classList.remove('hidden');
       await loadPublications();
     }
@@ -148,7 +148,7 @@
     }
 
     async function loadPublications() {
-      const { data, error } = await supabase.from('publications').select('*').eq('submitter_id', currentUser.id).order('created_at', { ascending: false });
+      const { data, error } = await supabaseClient.from('publications').select('*').eq('submitter_id', currentUser.id).order('created_at', { ascending: false });
       document.getElementById('loading').classList.add('hidden');
       publications = data || [];
       renderTable(publications);
@@ -223,9 +223,9 @@
       const existingId = document.getElementById('pub-id').value;
       let error;
       if (existingId) {
-        ({ error } = await supabase.from('publications').update(payload).eq('id', existingId));
+        ({ error } = await supabaseClient.from('publications').update(payload).eq('id', existingId));
       } else {
-        ({ error } = await supabase.from('publications').insert(payload));
+        ({ error } = await supabaseClient.from('publications').insert(payload));
       }
       btn.textContent = 'Save Publication'; btn.disabled = false;
       if (error) { errorEl.textContent = error.message; errorEl.classList.remove('hidden'); return; }
@@ -238,7 +238,7 @@
     async function confirmDelete() {
       document.getElementById('delete-modal').classList.add('hidden');
       if (!deleteTargetId) return;
-      const { error } = await supabase.from('publications').delete().eq('id', deleteTargetId);
+      const { error } = await supabaseClient.from('publications').delete().eq('id', deleteTargetId);
       if (error) { alert('Could not delete: ' + error.message); return; }
       deleteTargetId = null;
       await loadPublications();
