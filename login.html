@@ -36,7 +36,7 @@
   </div>
   <script>
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabaseClient.auth.getSession();
       if (session) window.location.href = 'publications.html';
     })();
 
@@ -52,7 +52,7 @@
       }
       btn.textContent = 'Sending…';
       btn.disabled = true;
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error } = await supabaseClient.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: window.location.origin + '/publications.html' },
       });
